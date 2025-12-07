@@ -60,8 +60,18 @@ while is_running:
 
     if drag_point_idx is not None:
         if drag_point_idx < COLS:
-            my_cloth.pos[:COLS] += cur_mouse_pos - prev_mouse_pos
-            my_cloth.old_pos[:COLS] = my_cloth.pos[my_cloth.pinned]
+            l = drag_point_idx - 1
+            r = drag_point_idx
+            while l >= 0:
+                if not my_cloth.connected[l]: break
+                l -= 1
+            l += 1
+            while r + 1 < COLS:
+                if not my_cloth.connected[r]: break
+                r += 1
+            r += 1
+            my_cloth.pos[l : r] += cur_mouse_pos - prev_mouse_pos
+            my_cloth.old_pos[l : r] = my_cloth.pos[l : r]
         else:
             my_cloth.pinned[drag_point_idx] = True
             my_cloth.pos[drag_point_idx] = cur_mouse_pos.copy()

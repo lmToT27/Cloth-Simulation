@@ -57,6 +57,7 @@ class cloth_t:
         self.COLS = COLS
         self.SPACING = SPACING
         self.K = K # Stiffness
+        self.connected = np.ones(COLS - 1, dtype = bool)
 
         num_points = ROWS * COLS
         self.pos = np.zeros((num_points, 2), dtype = np.float64)
@@ -113,6 +114,9 @@ class cloth_t:
             
             is_intersect = CheckIntersectKernel(start_arr, end_arr, p1, p2)
             mask.append(not is_intersect)
+
+            if is_intersect and max(u, v) < self.COLS:
+                self.connected[min(u, v)] = False
             
         mask = np.array(mask, dtype = np.bool_)
         self.lines = self.lines[mask]
