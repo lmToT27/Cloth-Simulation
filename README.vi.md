@@ -86,3 +86,41 @@ Trong đó gia tốc $\vec{a} = \frac{\vec{F}}{m}$.
     - **Collision:** Kiểm tra nếu điểm chạm đất hoặc vật cản, đẩy nó ra ngoài.
         
     - _(Nâng cao)_ **Stick Constraint:** Đôi khi thay vì dùng lực lò xo (vốn mềm và đàn hồi), người ta dùng ràng buộc khoảng cách cứng (Distance Constraint) và giải bằng phương pháp lặp (Relaxation) để vải không bị dãn vô hạn.
+
+## 🛠 Installation & Run
+
+### Yêu cầu
+
+* Git
+* Python 3.8-3.12
+
+### Clone repo về máy
+
+```bash
+git clone https://github.com/lmToT27/Cloth-Simulation.git
+cd Cloth-Simulation
+```
+
+### Cài đặt môi trường ảo và thư viện
+
+#### Windows (PowerShell / CMD)
+
+```bash
+python -m venv venv
+venv\Scripts\activate
+pip install numpy numba pygame
+```
+
+#### Linux / macOS
+
+```bash
+python3 -m venv venv
+source venv/bin/activate
+pip install numpy numba pygame
+```
+
+## Chạy chương trình
+
+```bash
+python Main.py
+```

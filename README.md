@@ -100,3 +100,41 @@ Constraints are applied immediately after integration to ensure stability:
 2. **Collision Handling:** Detect if points penetrate the ground or obstacles and project them back to the surface.
     
 3. **Stick Constraints (Optional/Advanced):** Instead of relying solely on soft spring forces, rigid distance constraints can be enforced (often using relaxation iterations) to prevent the fabric from looking like "super-elastic" rubber.
+
+## 🛠 Installation & Run
+
+### Requirements
+
+* Git
+* Python 3.8-3.12
+
+### Clone the Repository
+
+```bash
+git clone https://github.com/lmToT27/Cloth-Simulation.git
+cd Cloth-Simulation
+```
+
+### Set up virtual environment and install libraries (Windows & Linux)
+
+#### Windows (PowerShell / CMD)
+
+```bash
+python -m venv venv
+venv\Scripts\activate
+pip install numpy numba pygame
+```
+
+#### Linux / macOS
+
+```bash
+python3 -m venv venv
+source venv/bin/activate
+pip install numpy numba pygame
+```
+
+## Run the program
+
+```bash
+python Main.py
+```
