@@ -1,82 +1,130 @@
-from numpy import *
+import numpy as np
+from numba import njit
+
+@njit(fastmath = True)
+def UpdatePointsKernel(pos, old_pos, acc, pinned, dt, damping = 0.95, gravity = 400.0):
+    num_points = len(pos)
+    for i in range(num_points):
+        if pinned[i]: continue
+        vel = (pos[i] - old_pos[i]) * damping
+        tmp = pos[i].copy()
+        pos[i] = pos[i] + vel + np.array([0.0, gravity]) * dt * dt
+        old_pos[i] = tmp
+
+@njit(fastmath = True)
+def SolveConstraintsKernel(pos, lines, lengths, stiffness, times, pinned):
+    for _ in range(times):
+        for i in range(len(lines)):
+            idx1, idx2 = lines[i]
+            
+            if pinned[idx1] and pinned[idx2]: continue
+
+            p1 = pos[idx1]
+            p2 = pos[idx2]
+            
+            L = p2 - p1
+            Leng = (L[0] * L[0] + L[1] * L[1]) ** 0.5
+            
+            if Leng < 1e-6: continue
+
+            F = (Leng - lengths[i]) / Leng * L * stiffness
+
+            if pinned[idx1] or pinned[idx2]:
+                if pinned[idx1]: pos[idx2] -= 2 * F
+                else: pos[idx1] += 2 * F
+            else:
+                pos[idx1] += F
+                pos[idx2] -= F
+
+@njit(fastmath = True)
+def CheckIntersectKernel(pA, pB, pC, pD):
+    Ax, Ay = pA
+    Bx, By = pB
+    Cx, Cy = pC
+    Dx, Dy = pD
+
+    denom = (Ax - Bx) * (Cy - Dy) - (Ay - By) * (Cx - Dx)
+    if denom == 0: return False
+    
+    t = ((Ax - Cx) * (Cy - Dy) - (Ay - Cy) * (Cx - Dx)) / denom
+    u = ((Ax - Cx) * (Ay - By) - (Ay - Cy) * (Ax - Bx)) / denom
+    
+    return (0 < t < 1) and (0 < u < 1)
 
 class cloth_t:
-    class point_t():
-        def __init__(self, x, y, pinned):
-            self.pos = array([x * 1.0, y * 1.0])
-            self.old_pos = array([x * 1.0, y * 1.0])
-            self.acc = array([0.0, 0.0])
-            self.pinned = pinned
-
-        def Accelerate(self, x, y):
-            self.acc += array([x * 1.0, y * 1.0])
-
-    def CheckIntersect(self, pA, pB, pC, pD):  # Checking if AB CheckIntersects CD
-        Ax, Ay = pA
-        Bx, By = pB
-        Cx, Cy = pC
-        Dx, Dy = pD
-
-        denominator = (Ax - Bx) * (Cy - Dy) - (Ay - By) * (Cx - Dx)
-        if denominator == 0: return False
-        
-        t = ((Ax - Cx) * (Cy - Dy) - (Ay - Cy) * (Cx - Dx)) / denominator
-        u = ((Ax - Cx) * (Ay - By) - (Ay - Cy) * (Ax - Bx)) / denominator
-        
-        return (0 < t < 1) and (0 < u < 1)
-
-    def __init__(self, ROWS, COLS, SPACING, K, SCREEN_OFFSET): # K is stiffness
+    def __init__(self, ROWS, COLS, SPACING, K, SCREEN_OFFSET):
         self.ROWS = ROWS
         self.COLS = COLS
         self.SPACING = SPACING
-        self.K = K
+        self.K = K # Stiffness
 
-        self.points = []
-        self.lines = []
+        num_points = ROWS * COLS
+        self.pos = np.zeros((num_points, 2), dtype = np.float64)
+        self.old_pos = np.zeros((num_points, 2), dtype = np.float64)
+        self.pinned = np.zeros(num_points, dtype = np.bool_)
 
         for i in range(ROWS):
             for j in range(COLS):
+                idx = i * COLS + j
+                x = SCREEN_OFFSET + j * SPACING
+                y = 50 + i * SPACING
+                
+                self.pos[idx] = [x, y]
+                self.old_pos[idx] = [x, y]
+                
+                if i == 0:
+                    self.pinned[idx] = True
+
+        links = []
+        rest_lengths = []
+        
+        for i in range(ROWS):
+            for j in range(COLS):
                 u = i * COLS + j
-                self.points.append(self.point_t(SCREEN_OFFSET + j * SPACING, SCREEN_OFFSET + i * SPACING, i == 0))
                 if i > 0:
                     v = u - COLS
-                    self.lines.append((u, v))
+                    links.append([u, v])
+                    rest_lengths.append(SPACING)
                 if j > 0:
                     v = u - 1
-                    self.lines.append((u, v))
+                    links.append([u, v])
+                    rest_lengths.append(SPACING)
+        
+        self.lines = np.array(links, dtype = np.int32)
+        self.lengths = np.array(rest_lengths, dtype = np.float64)
 
     def UpdatePoints(self, dt):
-        for p in self.points:
-            if p.pinned: continue
-            p.Accelerate(0, 400)
-            tmp = p.pos.copy()
-            p.pos = 2 * p.pos - p.old_pos + p.acc * dt * dt
-            p.old_pos = tmp
-            p.acc = array([0.0, 0.0])
-    
-    def SolveConstraints(self, times):
-        for ___ in range(times):
-            for u, v in self.lines:
-                p1 = self.points[u]
-                p2 = self.points[v]
-                if p1.pinned and p2.pinned: continue
-                L = p2.pos - p1.pos
-                Leng = (L[0] * L[0] + L[1] * L[1]) ** 0.5
-                if Leng != 0:
-                    F = self.K * (Leng - self.SPACING) * (L / Leng)
-                    if p1.pinned or p2.pinned:
-                        if p2.pinned: p1.pos += 2 * F
-                        else: p2.pos -= 2 * F
-                    else:
-                        p1.pos += F
-                        p2.pos -= F
+        UpdatePointsKernel(self.pos, self.old_pos, None, self.pinned, dt)
 
-    def Cut(self, start_point, end_point):
-            new_lines = []
+    def SolveConstraints(self, times):
+        SolveConstraintsKernel(self.pos, self.lines, self.lengths, self.K, times, self.pinned)
+
+    def Cut(self, start_pos, end_pos):
+        if len(self.lines) == 0: return
+
+        start_arr = np.array(start_pos, dtype = np.float64)
+        end_arr = np.array(end_pos, dtype = np.float64)
+        
+        mask = []
+        for i in range(len(self.lines)):
+            u, v = self.lines[i]
+            p1 = self.pos[u]
+            p2 = self.pos[v]
             
-            for u, v in self.lines:
-                p1 = self.points[u].pos
-                p2 = self.points[v].pos
-                if not self.CheckIntersect(start_point, end_point, p1, p2): new_lines.append((u, v))
+            is_intersect = CheckIntersectKernel(start_arr, end_arr, p1, p2)
+            mask.append(not is_intersect)
             
-            self.lines = new_lines
+        mask = np.array(mask, dtype = np.bool_)
+        self.lines = self.lines[mask]
+        self.lengths = self.lengths[mask]
+
+    def FindNearestPoint(self, mouse_pos):
+        mouse_arr = np.array(mouse_pos, dtype = np.float64)
+        diff = self.pos - mouse_arr
+        dist_sq = np.sum(diff ** 2, axis = 1)
+        
+        min_idx = np.argmin(dist_sq)
+        
+        if dist_sq[min_idx] < 2500:
+            return min_idx
+        return None
