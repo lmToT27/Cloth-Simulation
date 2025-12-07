@@ -1,15 +1,33 @@
 import numpy as np
 from numba import njit
+from config import *
 
 @njit(fastmath = True)
-def UpdatePointsKernel(pos, old_pos, acc, pinned, dt, damping = 0.99, gravity = 400.0):
+def UpdatePointsKernel(pos, old_pos, pinned):
     num_points = len(pos)
+
     for i in range(num_points):
         if pinned[i]: continue
-        vel = (pos[i] - old_pos[i]) * damping
+        vel = (pos[i] - old_pos[i]) * DAMPING
         tmp = pos[i].copy()
-        pos[i] = pos[i] + vel + np.array([0.0, gravity]) * dt * dt
+        pos[i] = pos[i] + vel + np.array([0.0, GRAVITY]) * FDELTA_T * FDELTA_T
         old_pos[i] = tmp
+
+        if pos[i][0] < BARRIER_WIDTH:
+            pos[i][0] = BARRIER_WIDTH
+            old_pos[i][0] = pos[i][0]
+
+        elif pos[i][0] > SCREEN_WIDTH - BARRIER_WIDTH:
+            pos[i][0] = SCREEN_WIDTH - BARRIER_WIDTH
+            old_pos[i][0] = pos[i][0]
+
+        if pos[i][1] < BARRIER_WIDTH:
+            pos[i][1] = BARRIER_WIDTH
+            old_pos[i][1] = pos[i][1]
+
+        elif pos[i][1] > SCREEN_HEIGHT - BARRIER_WIDTH:
+            pos[i][1] = SCREEN_HEIGHT - BARRIER_WIDTH
+            old_pos[i][1] = pos[i][1]
 
 @njit(fastmath = True)
 def SolveConstraintsKernel(pos, lines, lengths, stiffness, times, pinned):
@@ -52,11 +70,11 @@ def CheckIntersectKernel(pA, pB, pC, pD):
     return (0 < t < 1) and (0 < u < 1)
 
 class cloth_t:
-    def __init__(self, ROWS, COLS, SPACING, K, SCREEN_OFFSET):
+    def __init__(self):
         self.ROWS = ROWS
         self.COLS = COLS
         self.SPACING = SPACING
-        self.K = K # Stiffness
+        self.STIFFNESS = STIFFNESS
         self.connected = np.ones(COLS - 1, dtype = bool)
 
         num_points = ROWS * COLS
@@ -94,11 +112,11 @@ class cloth_t:
         self.lines = np.array(links, dtype = np.int32)
         self.lengths = np.array(rest_lengths, dtype = np.float64)
 
-    def UpdatePoints(self, dt):
-        UpdatePointsKernel(self.pos, self.old_pos, None, self.pinned, dt)
+    def UpdatePoints(self):
+        UpdatePointsKernel(self.pos, self.old_pos, self.pinned)
 
     def SolveConstraints(self, times):
-        SolveConstraintsKernel(self.pos, self.lines, self.lengths, self.K, times, self.pinned)
+        SolveConstraintsKernel(self.pos, self.lines, self.lengths, self.STIFFNESS, times, self.pinned)
 
     def Cut(self, start_pos, end_pos):
         if len(self.lines) == 0: return
