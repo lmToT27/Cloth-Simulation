@@ -54,13 +54,16 @@ while is_running:
             if event.button == 1:
                 is_cutting = False
             elif event.button == 3:
+                if drag_point_idx is not None and drag_point_idx >= COLS:
+                    my_cloth.pinned[drag_point_idx] = False
                 drag_point_idx = None
 
     if drag_point_idx is not None:
-        if my_cloth.pinned[drag_point_idx]:
-            my_cloth.pos[my_cloth.pinned] += cur_mouse_pos - prev_mouse_pos
-            my_cloth.old_pos[my_cloth.pinned] = my_cloth.pos[my_cloth.pinned]
-        else: 
+        if drag_point_idx < COLS:
+            my_cloth.pos[:COLS] += cur_mouse_pos - prev_mouse_pos
+            my_cloth.old_pos[:COLS] = my_cloth.pos[my_cloth.pinned]
+        else:
+            my_cloth.pinned[drag_point_idx] = True
             my_cloth.pos[drag_point_idx] = cur_mouse_pos.copy()
             my_cloth.old_pos[drag_point_idx] = cur_mouse_pos.copy()
     

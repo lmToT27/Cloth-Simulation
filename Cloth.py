@@ -2,7 +2,7 @@ import numpy as np
 from numba import njit
 
 @njit(fastmath = True)
-def UpdatePointsKernel(pos, old_pos, acc, pinned, dt, damping = 0.95, gravity = 400.0):
+def UpdatePointsKernel(pos, old_pos, acc, pinned, dt, damping = 0.99, gravity = 400.0):
     num_points = len(pos)
     for i in range(num_points):
         if pinned[i]: continue
