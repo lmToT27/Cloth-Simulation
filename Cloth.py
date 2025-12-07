@@ -10,7 +10,21 @@ class cloth_t:
 
         def Accelerate(self, x, y):
             self.acc += array([x * 1.0, y * 1.0])
-    
+
+    def CheckIntersect(self, pA, pB, pC, pD):  # Checking if AB CheckIntersects CD
+        Ax, Ay = pA
+        Bx, By = pB
+        Cx, Cy = pC
+        Dx, Dy = pD
+
+        denominator = (Ax - Bx) * (Cy - Dy) - (Ay - By) * (Cx - Dx)
+        if denominator == 0: return False
+        
+        t = ((Ax - Cx) * (Cy - Dy) - (Ay - Cy) * (Cx - Dx)) / denominator
+        u = ((Ax - Cx) * (Ay - By) - (Ay - Cy) * (Ax - Bx)) / denominator
+        
+        return (0 < t < 1) and (0 < u < 1)
+
     def __init__(self, ROWS, COLS, SPACING, K, SCREEN_OFFSET): # K is stiffness
         self.ROWS = ROWS
         self.COLS = COLS
@@ -56,3 +70,13 @@ class cloth_t:
                     else:
                         p1.pos += F
                         p2.pos -= F
+
+    def Cut(self, start_point, end_point):
+            new_lines = []
+            
+            for u, v in self.lines:
+                p1 = self.points[u].pos
+                p2 = self.points[v].pos
+                if not self.CheckIntersect(start_point, end_point, p1, p2): new_lines.append((u, v))
+            
+            self.lines = new_lines
