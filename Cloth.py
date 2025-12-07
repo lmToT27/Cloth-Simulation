@@ -30,8 +30,8 @@ def UpdatePointsKernel(pos, old_pos, pinned):
             old_pos[i][1] = pos[i][1]
 
 @njit(fastmath = True)
-def SolveConstraintsKernel(pos, lines, lengths, stiffness, times, pinned):
-    for _ in range(times):
+def SolveConstraintsKernel(pos, lines, lengths, pinned):
+    for _ in range(NTIMES_OF_CONSTR_SOLVING):
         for i in range(len(lines)):
             idx1, idx2 = lines[i]
             
@@ -45,7 +45,7 @@ def SolveConstraintsKernel(pos, lines, lengths, stiffness, times, pinned):
             
             if Leng < 1e-6: continue
 
-            F = (Leng - lengths[i]) / Leng * L * stiffness
+            F = (Leng - lengths[i]) / Leng * L * STIFFNESS
 
             if pinned[idx1] or pinned[idx2]:
                 if pinned[idx1]: pos[idx2] -= 2 * F
@@ -115,8 +115,8 @@ class cloth_t:
     def UpdatePoints(self):
         UpdatePointsKernel(self.pos, self.old_pos, self.pinned)
 
-    def SolveConstraints(self, times):
-        SolveConstraintsKernel(self.pos, self.lines, self.lengths, self.STIFFNESS, times, self.pinned)
+    def SolveConstraints(self):
+        SolveConstraintsKernel(self.pos, self.lines, self.lengths, self.pinned)
 
     def Cut(self, start_pos, end_pos):
         if len(self.lines) == 0: return
